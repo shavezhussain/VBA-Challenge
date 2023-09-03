@@ -1,0 +1,153 @@
+Sub CreateDataA()
+    Dim dataDict As Object
+    Set dataDict = CreateObject("Scripting.Dictionary")
+    
+    Dim ws As Worksheet
+    Dim dataSheet As Worksheet
+    Dim j As Long
+
+   for each ws in ActiveWorkbook.Worksheets
+    Set dataSheet = ws
+ 
+    Dim lastRow As Long
+    lastRow = dataSheet.Cells(dataSheet.Rows.Count, "A").End(xlUp).Row
+    
+    Dim rowData As Range
+    For Each rowData In dataSheet.Range("A2:G" & lastRow)
+        Dim ticker As String
+        ticker = rowData.Cells(1, 1).Value
+           
+        Dim rowDataDict As Object
+        Set rowDataDict = CreateObject("Scripting.Dictionary")
+        
+        
+        rowDataDict("date") = rowData.Cells(1, 2).Value
+        rowDataDict("open") = rowData.Cells(1, 3).Value
+        rowDataDict("high") = rowData.Cells(1, 4).Value
+        rowDataDict("low") = rowData.Cells(1, 5).Value
+        rowDataDict("close") = rowData.Cells(1, 6).Value
+        rowDataDict("vol") = rowData.Cells(1, 7).Value
+        
+        If Not dataDict.Exists(ticker) Then
+            dataDict.Add ticker, New Collection
+        End If
+        
+        dataDict(ticker).Add rowDataDict
+    Next rowData
+    
+
+    'display tickers
+    Dim tick As String
+    Dim rowNum As Long
+    rowNum = 2
+    Dim outputRow As Double
+    outputRow = 2
+    Dim previousTicker As String
+    previousTicker = ""
+    
+    For rowNum = 2 To lastRow
+        tick = dataSheet.Cells(rowNum, 1).Value
+        If tick <> previousTicker Then
+            dataSheet.Cells(outputRow, "K").Value = tick
+            previousTicker = tick
+            outputRow = outputRow + 1
+        End If
+    Next rowNum
+    
+    'display headers
+    dataSheet.Cells(1, "K").Value = "Ticker"
+    dataSheet.Cells(1, "L").Value = "Yearly Change"
+    dataSheet.Cells(1, "M").Value = "Percent Change"
+    dataSheet.Cells(1, "N").Value = "Total Stock Volume"
+    
+    'main process
+    Dim o1 As Double
+    Dim c2 As Double
+    Dim yearlyChange As Double
+    Dim percentChange As Double
+    Dim yearlyRow As Long
+    Dim stockVolume As Double
+    Dim outputTicker As String
+    
+    Dim greatestIncrease As Double
+    greatestIncrease = 0
+    Dim greatestIncreaseRow As Double
+    greatestIncreaseRow = 0
+    
+    Dim greatestDecrease As Double
+    greatestDecrease = 0
+    Dim greatestDecreaseRow As Double
+    greatestDecreaseRow = 0
+    
+    Dim greatestTotalVolume As Double
+    greatestTotalVolume = 0
+    Dim greatestTotalVolumeRow As Double
+    greatestTotalVolumeRow = 0
+    
+
+    For yearlyRow = 2 To outputRow - 1
+        stockVolume = 0
+        outputTicker = dataSheet.Cells(yearlyRow, "K").Value
+        Dim tickerData As Collection
+        Set tickerData = dataDict(outputTicker)
+        
+        Dim i As Long
+        For i = 1 To tickerData.Count
+            Set rowDataDict = tickerData(i)
+            If i = 1 Then
+                o1 = rowDataDict("open")
+            End If
+
+            c2 = rowDataDict("close")
+            stockVolume = stockVolume + rowDataDict("vol")
+            
+        Next i
+        yearlyChange = (c2 - o1)
+        percentChange = (yearlyChange / o1) * 100
+        
+        dataSheet.Cells(yearlyRow, "L").Value = yearlyChange
+        dataSheet.Cells(yearlyRow, "M").Value = Format(percentChange, "#.00\%")
+        dataSheet.Cells(yearlyRow, "N").Value = stockVolume
+        
+        If greatestIncrease < percentChange Then
+            greatestIncrease = percentChange
+            greatestIncreaseRow = yearlyRow
+        End If
+        
+        If greatestDecrease > percentChange Then
+            greatestDecrease = percentChange
+            greatestDecreaseRow = yearlyRow
+        End If
+        
+        If greatestTotalVolume < stockVolume Then
+            greatestTotalVolume = stockVolume
+            greatestTotalVolumeRow = yearlyRow
+        End If
+        
+        If yearlyChange < 0 Then
+
+            dataSheet.Cells(yearlyRow, "L").Interior.Color = RGB(255, 0, 0) ' Red color
+        ElseIf yearlyChange > 0 Then
+
+            dataSheet.Cells(yearlyRow, "L").Interior.Color = RGB(0, 255, 0) ' Blue color
+        Else
+        End If
+        
+    Next yearlyRow
+    
+    dataSheet.Cells(1, "S").Value = "Ticker"
+    dataSheet.Cells(1, "T").Value = "Value"
+    dataSheet.Cells(2, "R").Value = "Greatest % Increase"
+    dataSheet.Cells(3, "R").Value = "Greatest % Decrease"
+    dataSheet.Cells(4, "R").Value = "Greatest Total Volume"
+    
+    dataSheet.Cells(2, "S").Value = dataSheet.Cells(greatestIncreaseRow, "K").Value
+    dataSheet.Cells(2, "T").Value = Format(greatestIncrease, "#.00\%")
+    
+    dataSheet.Cells(3, "S").Value = dataSheet.Cells(greatestDecreaseRow, "K").Value
+    dataSheet.Cells(3, "T").Value = Format(greatestDecrease, "#.00\%")
+    
+    dataSheet.Cells(4, "S").Value = dataSheet.Cells(greatestTotalVolumeRow, "K").Value
+    dataSheet.Cells(4, "T").Value = greatestTotalVolume
+Next ws
+End Sub
